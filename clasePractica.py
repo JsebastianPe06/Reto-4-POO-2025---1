@@ -15,7 +15,7 @@ class Point:
         self.y = 0
 
     def compute_distance(self, point)->float:
-        return sqrt((abs(self.x-point.x)**2)+(abs(self.y-point.y)**2))
+        return sqrt(((self.x-point.x)**2)+((self.y-point.y)**2))
     
     def __str__(self):
         return f"[{self.x}, {self.y}]"
@@ -100,18 +100,21 @@ class Shape:
         return self._vertices
     
     @property
-    def edges(self)->List[Line]:
-        edges = []
+    def _edges(self)->List[Line]:
+        _edges = []
         if(len(self._vertices) == self.number_sides):
             for i in range(len(self._vertices)-1):
                 t = Line(self._vertices[i], self._vertices[i+1])
-                edges.append(t)
-            edges.append(Line(self._vertices[-1], self._vertices[0]))
-        return edges
+                _edges.append(t)
+            _edges.append(Line(self._vertices[-1], self._vertices[0]))
+        return _edges
+    
+    def get_edges(self):
+        return self._edges
     
     @property
-    def inner_angles(self)->List[float]:
-        inner_angles = []
+    def _inner_angles(self)->List[float]:
+        _inner_angles = []
         if(len(self._vertices) == self.number_sides):
             for i in range(len(self._vertices)):
                 ref = self._vertices[i]
@@ -121,8 +124,11 @@ class Shape:
                     (v1.point_end.x-ref.x)*(v2.point_end.x-ref.x)
                     +(v1.point_end.y-ref.y)*(v2.point_end.y-ref.y)
                     )
-                inner_angles.append(degrees(acos(dot/(v1.length*v2.length))))
-        return inner_angles
+                _inner_angles.append(degrees(acos(dot/(v1.length*v2.length))))
+        return _inner_angles
+    
+    def get_inner_angles(self)->List[float]:
+        return self._inner_angles
     
     def compute_area(self):
         raise NotImplementedError("Method implemented by subclasses")
@@ -148,8 +154,8 @@ class Shape:
         if(len(self._vertices) != 0):
             for i in range(self.number_sides):
                 t2 += f"P{i}{self._vertices[i]} "
-                t3 += f"{self.edges[i]}"
-                t4 += f"A{i}({self.inner_angles[i]}°) "
+                t3 += f"{self._edges[i]}"
+                t4 += f"A{i}({self._inner_angles[i]}°) "
         else:
             return t1+"The vertices haven't defined correctly"
         t5 = f"Perimeter: {self.compute_perimeter()}\nArea: {self.compute_area()}"
@@ -177,24 +183,24 @@ class Rectangle(Shape):
         print("\nThe rectangle cannot be formed. It will not be updated.\n")
     
     def compute_area(self)-> float:
-        if(len(self.edges) != 0):
-            return self.edges[0].length*self.edges[1].length
+        if(len(self._edges) != 0):
+            return self._edges[0].length*self._edges[1].length
         return None
 
     def compute_perimeter(self)-> float:
-        if(len(self.edges) != 0):
-            return sum(i.length for i in self.edges)
+        if(len(self._edges) != 0):
+            return sum(i.length for i in self._edges)
         return None
     
     def compute_interference_point(self,point:Point)->bool:
-        if(len(self.edges) != 0):
-            val_x:bool = point.x >= self.b_left.x and point.x <= self.b_left.x+self.edges[0].length
-            val_y:bool = point.y >= self.b_left.y and point.y <= self.b_left.y+self.edges[1].length
+        if(len(self._edges) != 0):
+            val_x:bool = point.x >= self.b_left.x and point.x <= self.b_left.x+self._edges[0].length
+            val_y:bool = point.y >= self.b_left.y and point.y <= self.b_left.y+self._edges[1].length
             return val_y and val_x
         return None
     
     def compute_interference_line(self,line:Line)->bool:
-        if(len(self.edges) != 0):
+        if(len(self._edges) != 0):
             a:bool = self.b_left.y<=line.evaluate_value_function(self.b_left.x,0)<=self.t_right.y
             c:bool = self.b_left.y<=line.evaluate_value_function(self.t_right.x,0)<=self.t_right.y
             if(line.evaluate_value_function(self.t_right.y,1)!=None):
@@ -215,26 +221,26 @@ class Triangle(Shape):
         super().set_vertices(vertices)
 
     def classify_triangle(self)->str:
-        if(len(self.edges) != 0):
-            if(all(i.length == self.edges[0].length for i in self.edges)):
+        margin_error = 1e-6
+        if(len(self._edges) != 0):
+            if(all(i.length == self._edges[0].length for i in self._edges)):
                 return "Equilateral"
-            elif(sum(90 == i for i in self.inner_angles) == 1):
+            elif(sum(abs(90-i) < margin_error for i in self._inner_angles) == 1):
                 return "TriRectangle"
-            margin_error = 1e-6
-            if all(abs(i.length - self.edges[0].length) < margin_error for i in self.edges):
-                return "Isosceles"
-            return "Scalene"
+            if all(abs(i.length - self._edges[0].length) < margin_error for i in self._edges):
+                return "Scalene"
+            return "Isosceles"
         return None
 
     def compute_perimeter(self):
-        if(len(self.edges) != 0):
-            return sum(i.length for i in self.edges)
+        if(len(self._edges) != 0):
+            return sum(i.length for i in self._edges)
         return None
     
     def compute_area(self):
-        if(len(self.edges) != 0):
-            s = sum(i.length for i in self.edges)/2
-            a, b, c = (i.length for i in self.edges)
+        if(len(self._edges) != 0):
+            s = sum(i.length for i in self._edges)/2
+            a, b, c = (i.length for i in self._edges)
             return sqrt(s*(s-a)*(s-b)*(s-c))
 
 class Isosceles(Triangle):
@@ -285,3 +291,4 @@ print(triangulo1)
 vertices4 = [punto1, punto4, punto2]
 triangulo2 = TriRectangle(vertices4)
 print(triangulo2)
+print(triangulo2.get_inner_angles())
